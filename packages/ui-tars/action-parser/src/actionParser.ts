@@ -2,8 +2,61 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import { ActionInputs, PredictionParsed } from '@ui-tars/shared/types';
+import {
+  ActionInputs,
+  PredictionParsed,
+  UITarsModelVersion,
+  MAX_RATIO,
+  IMAGE_FACTOR,
+  MIN_PIXELS,
+  MAX_PIXELS_V1_5,
+} from '@ui-tars/shared/types';
 import isNumber from 'lodash.isnumber';
+
+function roundByFactor(num: number, factor: number): number {
+  return Math.round(num / factor) * factor;
+}
+
+function floorByFactor(num: number, factor: number): number {
+  return Math.floor(num / factor) * factor;
+}
+
+function ceilByFactor(num: number, factor: number): number {
+  return Math.ceil(num / factor) * factor;
+}
+
+function smartResizeForV15(
+  height: number,
+  width: number,
+  maxRatio: number = MAX_RATIO,
+  factor: number = IMAGE_FACTOR,
+  minPixels: number = MIN_PIXELS,
+  maxPixels: number = MAX_PIXELS_V1_5,
+): [number, number] | null {
+  if (Math.max(height, width) / Math.min(height, width) > maxRatio) {
+    console.error(
+      `absolute aspect ratio must be smaller than ${maxRatio}, got ${
+        Math.max(height, width) / Math.min(height, width)
+      }`,
+    );
+    return null;
+  }
+
+  let wBar = Math.max(factor, roundByFactor(width, factor));
+  let hBar = Math.max(factor, roundByFactor(height, factor));
+
+  if (hBar * wBar > maxPixels) {
+    const beta = Math.sqrt((height * width) / maxPixels);
+    hBar = floorByFactor(height / beta, factor);
+    wBar = floorByFactor(width / beta, factor);
+  } else if (hBar * wBar < minPixels) {
+    const beta = Math.sqrt(minPixels / (height * width));
+    hBar = ceilByFactor(height * beta, factor);
+    wBar = ceilByFactor(width * beta, factor);
+  }
+
+  return [wBar, hBar];
+}
 
 export function actionParser(params: {
   prediction: string;
@@ -15,10 +68,12 @@ export function actionParser(params: {
   };
   scaleFactor?: number;
   mode?: 'bc' | 'o1';
+  modelVer?: UITarsModelVersion;
 }): {
   parsed: PredictionParsed[];
 } {
-  const { prediction, factor, mode, screenContext, scaleFactor } = params;
+  const { prediction, factor, mode, screenContext, scaleFactor, modelVer } =
+    params;
 
   const parsed = parseActionVlm(
     prediction,
@@ -26,6 +81,7 @@ export function actionParser(params: {
     mode,
     screenContext,
     scaleFactor,
+    modelVer,
   );
 
   return {
@@ -42,15 +98,28 @@ export function parseActionVlm(
     height: number;
   },
   scaleFactor?: number,
+  modelVer: UITarsModelVersion = UITarsModelVersion.V1_0,
 ): PredictionParsed[] {
   let reflection: string | null = null;
   let thought: string | null = null;
   let actionStr = '';
 
+  let smartResizeFactors: [number, number] | null = null;
+  if (
+    modelVer === UITarsModelVersion.V1_5 &&
+    screenContext?.height &&
+    screenContext?.width
+  ) {
+    smartResizeFactors = smartResizeForV15(
+      screenContext.height,
+      screenContext.width,
+    );
+  }
+
   text = text.trim();
   if (mode === 'bc') {
     // Parse thought/reflection based on different text patterns
-    if (text.startsWith('Thought:')) {
+    if (text.includes('Thought:')) {
       const thoughtMatch = text.match(/Thought: ([\s\S]+?)(?=\s*Action:|$)/);
 
       if (thoughtMatch) {
@@ -114,12 +183,6 @@ export function parseActionVlm(
       for (const [paramName, param] of Object.entries(params)) {
         if (!param) continue;
         const trimmedParam = (param as string).trim();
-        actionInputs[
-          paramName.trim() as keyof Omit<
-            ActionInputs,
-            'start_coords' | 'end_coords'
-          >
-        ] = trimmedParam;
 
         if (paramName.includes('start_box') || paramName.includes('end_box')) {
           const oriBox = trimmedParam;
@@ -132,6 +195,9 @@ export function parseActionVlm(
           // Convert to float and scale
           const floatNumbers = numbers.map((num, idx) => {
             const factorIndex = idx % 2;
+            if (modelVer === UITarsModelVersion.V1_5 && smartResizeFactors) {
+              return Number.parseFloat(num) / smartResizeFactors[factorIndex];
+            }
             return Number.parseFloat(num) / factors[factorIndex];
           });
 
@@ -168,6 +234,13 @@ export function parseActionVlm(
                 ]
               : [];
           }
+        } else {
+          actionInputs[
+            paramName.trim() as keyof Omit<
+              ActionInputs,
+              'start_coords' | 'end_coords'
+            >
+          ] = trimmedParam;
         }
       }
     }
@@ -189,6 +262,12 @@ export function parseActionVlm(
  */
 function parseAction(actionStr: string) {
   try {
+    // Support format: click(start_box='<|box_start|>(x1,y1)<|box_end|>')
+    actionStr = actionStr.replace(/<\|box_start\|>|<\|box_end\|>/g, '');
+
+    // Preprocess "point="" parameter to "start_box="
+    actionStr = actionStr.replace(/point=/g, 'start_box=');
+
     // Match function name and arguments using regex
     const functionPattern = /^(\w+)\((.*)\)$/;
     const match = actionStr.trim().match(functionPattern);
@@ -215,9 +294,15 @@ function parseAction(actionStr: string) {
           .trim()
           .replace(/^['"]|['"]$/g, ''); // Remove surrounding quotes
 
-        // Process output with bbox
+        // Support format: click(start_box='<bbox>637 964 637 964</bbox>')
         if (value.includes('<bbox>')) {
           value = value.replace(/<bbox>|<\/bbox>/g, '').replace(/\s+/g, ',');
+          value = `(${value})`;
+        }
+
+        // Support format: click(point='<point>510 150</point>')
+        if (value.includes('<point>')) {
+          value = value.replace(/<point>|<\/point>/g, '').replace(/\s+/g, ',');
           value = `(${value})`;
         }
 

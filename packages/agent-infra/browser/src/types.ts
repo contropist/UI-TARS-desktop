@@ -3,7 +3,9 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import { Page, WaitForOptions } from 'puppeteer-core';
+import type { Page, KeyInput, WaitForOptions } from 'puppeteer-core';
+
+export type BrowserType = 'chrome' | 'edge' | 'firefox';
 
 /**
  * Options for launching a browser instance
@@ -11,10 +13,25 @@ import { Page, WaitForOptions } from 'puppeteer-core';
  */
 export interface LaunchOptions {
   /**
+   * Additional command line arguments to pass to the browser instance.
+   */
+  args?: string[];
+  /**
+   * If true, pipes the browser process stdout and stderr to `process.stdout`
+   * and `process.stderr`.
+   * @defaultValue `false`
+   */
+  dumpio?: boolean;
+  /**
    * Whether to run browser in headless mode
    * @default false
    */
   headless?: boolean;
+
+  /**
+   * Browser type, 'chrome' | 'edge' | 'firefox'
+   */
+  browserType?: BrowserType;
 
   /**
    * Maximum time in milliseconds to wait for the browser to start
@@ -49,6 +66,12 @@ export interface LaunchOptions {
    * Used to route browser traffic through a proxy server
    */
   proxy?: string;
+
+  /**
+   * Proxy bypass list, e.g. '*.example.com,*.test.com'
+   * Used to bypass the proxy server for specific domains
+   */
+  proxyBypassList?: string;
 }
 
 /**
@@ -154,4 +177,4 @@ export interface BrowserInterface {
   getActivePage(): Promise<Page>;
 }
 
-export { Page };
+export { Page, KeyInput };

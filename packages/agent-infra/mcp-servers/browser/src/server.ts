@@ -6,16 +6,25 @@
  * Copyright (c) 2024 Anthropic, PBC
  * https://github.com/modelcontextprotocol/servers/blob/main/LICENSE
  */
+import os from 'node:os';
+import {
+  McpServer,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   CallToolResult,
   ImageContent,
   TextContent,
 } from '@modelcontextprotocol/sdk/types.js';
-import { Logger, defaultLogger } from '@agent-infra/logger';
+import { Logger, ConsoleLogger } from '@agent-infra/logger';
 import { z } from 'zod';
-import { ToolSchema } from '@modelcontextprotocol/sdk/types.js';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { LaunchOptions, LocalBrowser, Page } from '@agent-infra/browser';
+import {
+  LaunchOptions,
+  LocalBrowser,
+  Page,
+  RemoteBrowser,
+  RemoteBrowserOptions,
+} from '@agent-infra/browser';
 import { PuppeteerBlocker } from '@ghostery/adblocker-puppeteer';
 import fetch from 'cross-fetch';
 import {
@@ -29,22 +38,24 @@ import {
   locateElement,
   scrollIntoViewIfNeeded,
 } from '@agent-infra/browser-use';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import TurndownService from 'turndown';
 // @ts-ignore
 import { gfm } from 'turndown-plugin-gfm';
-const ToolInputSchema = ToolSchema.shape.inputSchema;
-type ToolInput = z.infer<typeof ToolInputSchema>;
+import merge from 'lodash.merge';
+import { parseProxyUrl } from './utils.js';
+
+const consoleLogs: string[] = [];
 
 interface GlobalConfig {
   launchOptions?: LaunchOptions;
+  remoteOptions?: RemoteBrowserOptions;
   logger?: Partial<Logger>;
 }
 
 // Global state
 let globalConfig: GlobalConfig = {
   launchOptions: {
-    headless: true,
+    headless: os.platform() === 'linux' && !process.env.DISPLAY,
   },
 };
 let globalBrowser: LocalBrowser['browser'] | undefined;
@@ -52,9 +63,10 @@ let globalPage: Page | undefined;
 let selectorMap: Map<number, DOMElementNode> | undefined;
 
 const screenshots = new Map<string, string>();
-const logger = (globalConfig?.logger || defaultLogger) as Logger;
+const logger = (globalConfig?.logger ||
+  new ConsoleLogger('[mcp-browser]')) as Logger;
 
-export const getScreenshots = () => screenshots;
+const getScreenshots = () => screenshots;
 
 const getCurrentPage = async (browser: LocalBrowser['browser']) => {
   const pages = await browser?.pages();
@@ -82,11 +94,12 @@ const getCurrentPage = async (browser: LocalBrowser['browser']) => {
   };
 };
 
-export async function setConfig(config: GlobalConfig) {
-  globalConfig = config;
+async function setConfig(config: GlobalConfig = {}) {
+  globalConfig = merge({}, globalConfig, config);
+  logger.info('[setConfig] globalConfig', globalConfig);
 }
 
-export async function setInitialBrowser(
+async function setInitialBrowser(
   _browser?: LocalBrowser['browser'],
   _page?: Page,
 ) {
@@ -118,9 +131,11 @@ export async function setInitialBrowser(
 
   // priority 2: create new browser and page
   if (!globalBrowser) {
-    const localBrowser = new LocalBrowser();
-    await localBrowser.launch(globalConfig.launchOptions);
-    globalBrowser = localBrowser.getBrowser();
+    const browser = globalConfig.remoteOptions
+      ? new RemoteBrowser(globalConfig.remoteOptions)
+      : new LocalBrowser();
+    await browser.launch(globalConfig.launchOptions);
+    globalBrowser = browser.getBrowser();
   }
   let currTabsIdx = 0;
 
@@ -142,6 +157,30 @@ export async function setInitialBrowser(
   globalPage?.setUserAgent(
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
   );
+
+  try {
+    await Promise.race([
+      PuppeteerBlocker.fromPrebuiltAdsAndTracking(fetch).then((blocker) =>
+        blocker.enableBlockingInPage(globalPage as any),
+      ),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Blocking In Page timeout')), 1000),
+      ),
+    ]);
+  } catch (e) {
+    logger.error('Error enabling adblocker:', e);
+  }
+
+  // set proxy authentication
+  if (globalConfig?.launchOptions?.proxy) {
+    const proxy = parseProxyUrl(globalConfig.launchOptions.proxy);
+    if (proxy.username || proxy.password) {
+      await globalPage.authenticate({
+        username: proxy.username,
+        password: proxy.password,
+      });
+    }
+  }
 
   return {
     browser: globalBrowser,
@@ -183,7 +222,7 @@ export const toolsMap = {
     name: 'browser_screenshot',
     description: 'Take a screenshot of the current page or a specific element',
     inputSchema: z.object({
-      name: z.string().describe('Name for the screenshot'),
+      name: z.string().optional().describe('Name for the screenshot'),
       selector: z
         .string()
         .optional()
@@ -319,23 +358,6 @@ type ToolInputMap = {
   [K in ToolNames]: z.infer<(typeof toolsMap)[K]['inputSchema']>;
 };
 
-const listTools: Client['listTools'] = async () => {
-  const mcpTools = Object.keys(toolsMap || {}).map((key) => {
-    const name = key as ToolNames;
-    const tool = toolsMap[name];
-    return {
-      // @ts-ignore
-      name: tool?.name || name,
-      description: tool.description,
-      inputSchema: zodToJsonSchema(tool.inputSchema) as ToolInput,
-    };
-  });
-
-  return {
-    tools: mcpTools,
-  };
-};
-
 async function buildDomTree(page: Page) {
   try {
     const rawDomTree = await page.evaluate(() => {
@@ -366,9 +388,12 @@ async function buildDomTree(page: Page) {
   }
 }
 
-const handleToolCall: Client['callTool'] = async ({
+const handleToolCall = async ({
   name,
   arguments: toolArgs,
+}: {
+  name: string;
+  arguments: ToolInputMap[keyof ToolInputMap];
 }): Promise<CallToolResult> => {
   const initialBrowser = await setInitialBrowser();
   const { browser } = initialBrowser;
@@ -460,14 +485,6 @@ const handleToolCall: Client['callTool'] = async ({
     },
     browser_navigate: async (args) => {
       try {
-        try {
-          const blocker =
-            await PuppeteerBlocker.fromPrebuiltAdsAndTracking(fetch);
-          await blocker.enableBlockingInPage(page as any);
-        } catch (e) {
-          logger.error('Error enabling adblocker:', e);
-        }
-
         await Promise.all([
           waitForPageAndFramesLoad(page),
           page.goto(args.url),
@@ -483,7 +500,7 @@ const handleToolCall: Client['callTool'] = async ({
           ],
           isError: false,
         };
-      } catch (error) {
+      } catch (error: unknown) {
         // Check if it's a timeout error
         if (error instanceof Error && error.message.includes('timeout')) {
           logger.warn(
@@ -503,7 +520,12 @@ const handleToolCall: Client['callTool'] = async ({
         } else {
           logger.error('NavigationTo failed:', error);
           return {
-            content: [{ type: 'text', text: 'Navigation failed' }],
+            content: [
+              {
+                type: 'text',
+                text: `Navigation failed ${error instanceof Error ? error?.message : error}`,
+              },
+            ],
             isError: true,
           };
         }
@@ -539,13 +561,15 @@ const handleToolCall: Client['callTool'] = async ({
         };
       }
 
-      screenshots.set(args.name, screenshot as string);
+      const name = args?.name ?? 'undefined';
+
+      screenshots.set(name, screenshot as string);
 
       return {
         content: [
           {
             type: 'text',
-            text: `Screenshot '${args.name}' taken at ${width}x${height}`,
+            text: `Screenshot '${name}' taken at ${width}x${height}`,
           } as TextContent,
           {
             type: 'image',
@@ -594,7 +618,7 @@ const handleToolCall: Client['callTool'] = async ({
       }
     },
     browser_click: async (args) => {
-      if (!args.index) {
+      if ((args.index ?? -1) < 0) {
         return {
           content: [{ type: 'text', text: 'No index provided' }],
           isError: true,
@@ -1074,22 +1098,82 @@ const handleToolCall: Client['callTool'] = async ({
   };
 };
 
-const close = async () => {
-  const { browser } = getBrowser();
-  await browser?.close();
-};
+function createServer(config: GlobalConfig = {}): McpServer {
+  setConfig(config);
 
-// https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/utilities/ping/#behavior-requirements
-const ping: Client['ping'] = async () => {
-  return {
-    _meta: {},
-  };
-};
+  const server = new McpServer({
+    name: 'Web Browser',
+    version: process.env.VERSION || '0.0.1',
+  });
 
-export const client: Pick<Client, 'callTool' | 'listTools' | 'close' | 'ping'> =
-  {
-    callTool: handleToolCall,
-    listTools: listTools,
-    close,
-    ping,
-  };
+  // === Tools ===
+  Object.entries(toolsMap).forEach(([name, tool]) => {
+    server.tool(
+      name,
+      tool.description,
+      // @ts-ignore
+      tool.inputSchema?.innerType
+        ? // @ts-ignore
+          tool.inputSchema.innerType().shape
+        : // @ts-ignore
+          tool.inputSchema.shape,
+      // @ts-ignore
+      async (args) => await handleToolCall({ name, arguments: args }),
+    );
+  });
+
+  // === Resources ===
+  server.resource(
+    'Browser console logs',
+    'console://logs',
+    {
+      mimeType: 'text/plain',
+    },
+    async (uri) => {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: consoleLogs.join('\n'),
+          },
+        ],
+      };
+    },
+  );
+
+  server.resource(
+    'Browser Screenshots',
+    new ResourceTemplate('screenshot://{name}', {
+      list: () => {
+        const screenshots = getScreenshots();
+        return {
+          resources: Array.from(screenshots.keys()).map((name) => ({
+            uri: `screenshot://${name}`,
+            mimeType: 'image/png',
+            name: `Screenshot: ${name}`,
+          })),
+        };
+      },
+    }),
+    async (uri, { name }) => {
+      const latestScreenshots = getScreenshots();
+      const screenshots = (
+        Array.isArray(name)
+          ? name.map((n) => latestScreenshots.get(n))
+          : [latestScreenshots.get(name)]
+      ) as string[];
+
+      return {
+        contents: screenshots.filter(Boolean).map((screenshot) => ({
+          uri: uri.href,
+          mimeType: 'image/png',
+          blob: screenshot,
+        })),
+      };
+    },
+  );
+
+  return server;
+}
+
+export { createServer, getScreenshots, setConfig, setInitialBrowser };
