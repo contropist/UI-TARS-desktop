@@ -2,7 +2,7 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { logger } from '@main/logger';
 import * as env from '@main/env';
@@ -28,8 +28,8 @@ export function show() {
 export function createMainWindow() {
   mainWindow = createWindow({
     routerPath: '/',
-    width: 430,
-    height: 580,
+    width: 1200,
+    height: 700,
     alwaysOnTop: false,
   });
 
@@ -37,7 +37,18 @@ export function createMainWindow() {
     logger.info('mainWindow closed');
     if (env.isMacOS) {
       event.preventDefault();
-      mainWindow?.hide();
+
+      // Black screen on window close in fullscreen mode
+      // https://github.com/electron/electron/issues/20263#issuecomment-633179965
+      if (mainWindow?.isFullScreen()) {
+        mainWindow?.setFullScreen(false);
+
+        mainWindow?.once('leave-full-screen', () => {
+          mainWindow?.hide();
+        });
+      } else {
+        mainWindow?.hide();
+      }
     } else {
       mainWindow = null;
     }
@@ -61,7 +72,7 @@ export function createSettingsWindow(
   const mainWindowBounds = mainWindow?.getBounds();
   console.log('mainWindowBounds', mainWindowBounds);
 
-  const width = 480;
+  const width = 600;
   const height = 600;
 
   let x, y;
@@ -85,7 +96,18 @@ export function createSettingsWindow(
   settingsWindow.on('close', (event) => {
     if (env.isMacOS) {
       event.preventDefault();
-      settingsWindow?.hide();
+
+      // Black screen on window close in fullscreen mode
+      // https://github.com/electron/electron/issues/20263#issuecomment-633179965
+      if (settingsWindow?.isFullScreen()) {
+        settingsWindow?.setFullScreen(false);
+
+        settingsWindow?.once('leave-full-screen', () => {
+          settingsWindow?.hide();
+        });
+      } else {
+        settingsWindow?.hide();
+      }
     } else {
       settingsWindow = null;
     }
@@ -132,11 +154,7 @@ export async function hideWindowBlock<T>(
     mainWindow?.setAlwaysOnTop(true);
     mainWindow?.setFocusable(false);
     try {
-      if (mainWindow) {
-        originalBounds = mainWindow.getBounds();
-        const { width: screenWidth } = screen.getPrimaryDisplay().size;
-        mainWindow.setPosition(screenWidth - originalBounds.width, 0);
-      }
+      mainWindow?.hide();
     } catch (e) {
       logger.error(e);
     }
@@ -153,6 +171,7 @@ export async function hideWindowBlock<T>(
       mainWindow?.setBounds(originalBounds);
     }
     mainWindow?.setFocusable(true);
+    mainWindow?.show();
   }
 }
 
