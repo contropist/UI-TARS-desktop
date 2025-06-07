@@ -6,7 +6,9 @@ import {
   Message,
   GUIAgentData,
   PredictionParsed,
+  UITarsModelVersion,
   ScreenshotResult,
+  GUIAgentError,
   StatusEnum,
 } from '@ui-tars/shared/types';
 
@@ -43,11 +45,15 @@ export interface InvokeParams {
   };
   /** physicalSize = screenshotSize * scaleFactor */
   scaleFactor?: number;
+  /** the ui-tars's version */
+  uiTarsVersion?: UITarsModelVersion;
 }
 
 export interface InvokeOutput {
   prediction: string;
   parsedPredictions: PredictionParsed[];
+  costTime?: number;
+  costTokens?: number;
   // TODO: status: StatusEnum, status should be provided by model
 }
 export abstract class Operator extends BaseOperator {
@@ -70,13 +76,6 @@ export interface RetryConfig {
   onRetry?: (error: Error, attempt: number) => void;
 }
 
-export interface GUIAgentError {
-  // TODO: define error code
-  code: number;
-  error: string;
-  stack?: string;
-}
-
 export interface GUIAgentConfig<TOperator> {
   operator: TOperator;
   model:
@@ -97,6 +96,9 @@ export interface GUIAgentConfig<TOperator> {
   };
   /** Maximum number of turns for Agent to execute, @default 25 */
   maxLoopCount?: number;
+  /** Time interval between two loop iterations (in milliseconds), @default 0 */
+  loopIntervalInMs?: number;
+  uiTarsVersion?: UITarsModelVersion;
 }
 
 export interface AgentContext<T = Operator> extends GUIAgentConfig<T> {
