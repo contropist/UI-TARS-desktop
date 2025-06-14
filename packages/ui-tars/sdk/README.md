@@ -1,5 +1,7 @@
 # @ui-tars/sdk Guide (Experimental)
 
+[![NPM Downloads](https://img.shields.io/npm/d18m/@ui-tars/sdk)](https://www.npmjs.com/package/@ui-tars/sdk) [![codecov](https://codecov.io/gh/bytedance/UI-TARS-desktop/graph/badge.svg?component=ui_tars_sdk)](https://app.codecov.io/gh/bytedance/UI-TARS-desktop/components/ui_tars_sdk)
+
 ## Overview
 
 `@ui-tars/sdk` is a powerful cross-platform(ANY device/platform) toolkit for building GUI automation agents.
@@ -229,7 +231,7 @@ When implementing a custom operator, you need to implement two core methods: `sc
   },
   "devDependencies": {
     "@ui-tars/sdk": "^1.2.0-beta.17",
-    "@rslib/core": "^0.5.4",
+    "@rslib/core": "0.9.2",
     "typescript": "^5.7.2",
     "vitest": "^3.0.2"
   }

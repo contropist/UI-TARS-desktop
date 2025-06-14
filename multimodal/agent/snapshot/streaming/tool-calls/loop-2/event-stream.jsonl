@@ -1,0 +1,250 @@
+[
+  {
+    "id": "049c2152-79e9-45d6-a170-3c9c7287ac47",
+    "type": "agent_run_start",
+    "timestamp": 1749894931553,
+    "sessionId": "1749894931553-8b7d0ed",
+    "runOptions": {
+      "input": "How's the weather today?",
+      "stream": true
+    },
+    "provider": "volcengine",
+    "model": "ep-20250512165931-2c2ln"
+  },
+  {
+    "id": "7f29bc3a-b5b5-4980-abcb-d5933e44d383",
+    "type": "user_message",
+    "timestamp": 1749894931553,
+    "content": "How's the weather today?"
+  },
+  {
+    "id": "5be6ddc7-5c86-4860-8e61-b81fd4309b97",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932365,
+    "content": "To",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "0fe72e32-2819-47b3-a7e5-f0941f8b8252",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932365,
+    "content": " get",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "1a680dea-7724-4c7d-a5a4-ef01cb10e4a9",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932365,
+    "content": " the",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "9cf84f29-aec5-4525-be8e-d77f331a39b0",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932366,
+    "content": " weather",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "82d8f1dd-d8de-4984-a3c7-028f93729b4a",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932366,
+    "content": ",",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "153f506e-a765-4c12-adef-faab135009d5",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932366,
+    "content": " we",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "82760b95-dc94-46cd-bb14-c043f84bf568",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932366,
+    "content": " first",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "3980d36c-47be-4a87-8a2c-3278ab9a42e7",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932505,
+    "content": " need",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "149d7fe4-00c8-4767-a194-fc0c17192b61",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932505,
+    "content": " the",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "41ccb44a-1c5c-4be8-815f-0309fb4a155b",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932505,
+    "content": " user",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "76f1c2b7-d83e-436e-aec0-b3dac5ffcd4a",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932507,
+    "content": "'s",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "0cef9a91-5d10-434f-a51f-3e4de7720249",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932571,
+    "content": " current",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "5085540a-549b-419c-ad73-22c672a3355e",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932571,
+    "content": " location",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "7c4d01da-bbea-4fb6-a670-27ad9097f228",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932571,
+    "content": ".",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "17e07a4c-79b1-4b30-9b7b-d5ebd915a530",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932571,
+    "content": " So",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "aa4c4fb2-ad51-405e-a21f-be599df8da9d",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932692,
+    "content": " call",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "c23a843c-7834-41aa-b313-ff3cb55ce465",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932692,
+    "content": " get",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "9a8641d4-a068-4587-8e64-77a14bc0684e",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932692,
+    "content": "Current",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "bf6a15d4-5b88-490f-ba47-46c027f76141",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894932692,
+    "content": "Location",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "5c320015-1dd3-41d3-85f9-d4822bbdbefb",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894933191,
+    "content": " to",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "5912c665-ca7d-46df-82b3-8b1b3ceaf321",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894933191,
+    "content": " retrieve",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "3cacc608-7c15-48b0-a6e4-3712089b35bf",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894933191,
+    "content": " it",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "cbd82cf2-0e95-43e9-82b8-772922935330",
+    "type": "assistant_streaming_message",
+    "timestamp": 1749894933191,
+    "content": ".",
+    "isComplete": false,
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "06305276-892c-43c3-8ad3-2ec861da091f",
+    "type": "assistant_message",
+    "timestamp": 1749894933614,
+    "content": "To get the weather, we first need the user's current location. So call getCurrentLocation to retrieve it.",
+    "toolCalls": [
+      {
+        "id": "call_igk6hvsydv3a4hwicqcmid7k",
+        "type": "function",
+        "function": {
+          "name": "getCurrentLocation",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "finishReason": "tool_calls",
+    "messageId": "msg_1749894932365_vphwmrad"
+  },
+  {
+    "id": "2ef7a969-db9c-4ad8-b8bc-b12a66574983",
+    "type": "tool_call",
+    "timestamp": 1749894933615,
+    "toolCallId": "call_igk6hvsydv3a4hwicqcmid7k",
+    "name": "getCurrentLocation",
+    "arguments": {},
+    "startTime": 1749894933615,
+    "tool": {
+      "name": "getCurrentLocation",
+      "description": "Get user's current location",
+      "schema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "id": "f1d10db8-9fa8-4b7a-a1e6-f90a3791b65c",
+    "type": "tool_result",
+    "timestamp": 1749894933616,
+    "toolCallId": "call_igk6hvsydv3a4hwicqcmid7k",
+    "name": "getCurrentLocation",
+    "content": {
+      "location": "Boston"
+    },
+    "elapsedMs": 0
+  }
+]

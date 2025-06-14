@@ -16,6 +16,7 @@ import {
 } from '@common/electron-build';
 
 import pkg from './package.json';
+import { tagPrefix } from './src/shared/constants';
 
 const projectRoot = path.resolve(__dirname, '.');
 
@@ -156,6 +157,7 @@ const config: ForgeConfig = {
     // appBundleId: 'com.bytedance.uitars',
     name: 'Agent TARS',
     icon: 'resources/icon',
+    extraResource: ['./resources/app-update.yml'],
     asar: true,
     ignore: [ignorePattern],
     prune: false,
@@ -187,11 +189,11 @@ const config: ForgeConfig = {
     {
       name: '@electron-forge/publisher-github',
       config: {
-        repository: { owner: 'bytedance', name: 'ui-tars-desktop' },
+        repository: { owner: 'bytedance', name: 'UI-TARS-desktop' },
         draft: true,
         force: true,
         generateReleaseNotes: true,
-        tagPrefix: 'Agent-TARS-v',
+        tagPrefix,
       },
     },
   ],

@@ -4,6 +4,7 @@ on:
     paths:
       - 'packages/common/**'
       - 'packages/ui-tars/**'
+      - '.github/workflows/e2e-ui-tars.yml'
       - 'apps/ui-tars/**'
   push:
     branches:
@@ -17,6 +18,7 @@ env:
   CI: e2e
   NODE_OPTIONS: --max-old-space-size=8192
   HUSKY: 0
+  UI_TARS_APP_PRIVATE_KEY_BASE64: e2e-ui-tars-test-private-key
 
 permissions:
   id-token: write
@@ -29,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest, macos-13, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
