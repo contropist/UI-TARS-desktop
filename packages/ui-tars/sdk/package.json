@@ -1,6 +1,6 @@
 {
   "name": "@ui-tars/sdk",
-  "version": "1.2.0-beta.24",
+  "version": "1.2.2",
   "description": "A powerful cross-platform(ANY device/platform) toolkit for building GUI automation agents for UI-TARS",
   "repository": {
     "type": "git",
@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "tsx": "^4.19.2",
-    "@rslib/core": "^0.5.4",
+    "@rslib/core": "0.9.2",
     "@common/configs": "workspace:*",
     "typescript": "^5.7.2",
     "vitest": "^3.0.2",

@@ -15,7 +15,9 @@ const platformNamesMap = {
   win32: 'windows',
 };
 const updateYmlMap = {
-  darwin: 'latest-mac.yml',
+  darwin_universal: 'latest-mac.yml',
+  darwin_x64: 'latest-mac-x64.yml',
+  darwin_arm64: 'latest-mac-arm64.yml',
   linux: 'latest-linux.yml',
   win32: 'latest.yml',
 };
@@ -40,23 +42,26 @@ export const postMake: ForgeHookMap['postMake'] = async (
   makeResults = makeResults.map((result) => {
     result.artifacts = result.artifacts.map((artifact) => {
       if (artifactRegex.test(artifact)) {
+        const newArtifact = artifact.replace(/\s+/g, '-');
+        fs.renameSync(artifact, newArtifact);
+
         try {
-          const fileData = fs.readFileSync(artifact);
+          const fileData = fs.readFileSync(newArtifact);
           const hash = crypto
             .createHash('sha512')
             .update(fileData)
             .digest('base64');
-          const { size } = fs.statSync(artifact);
+          const { size } = fs.statSync(newArtifact);
 
           yml.files.push({
-            url: path.basename(artifact),
+            url: path.basename(newArtifact),
             sha512: hash,
             size,
           });
         } catch {
-          console.error(`Failed to hash ${artifact}`);
+          console.error(`Failed to hash ${newArtifact}`);
         }
-        return artifact;
+        return newArtifact;
       } else {
         return artifact;
       }
@@ -70,14 +75,28 @@ export const postMake: ForgeHookMap['postMake'] = async (
     throw new Error('Missing required artifact or platform information');
   }
 
+  const ymlKey =
+    firstResult.platform === 'darwin'
+      ? `${firstResult.platform}_${firstResult.arch}`
+      : firstResult.platform;
+
   const ymlPath = `${path.dirname(firstResult.artifacts[0])}/${
-    updateYmlMap[firstResult.platform as keyof typeof updateYmlMap]
+    updateYmlMap[ymlKey as keyof typeof updateYmlMap]
   }`;
 
   const ymlStr = yaml.dump(yml, {
     lineWidth: -1,
   });
   fs.writeFileSync(ymlPath, ymlStr);
+  // write yml to out/
+  fs.writeFileSync(
+    path.join(
+      process.cwd(),
+      'out',
+      updateYmlMap[ymlKey as keyof typeof updateYmlMap],
+    ),
+    ymlStr,
+  );
 
   makeResults.push({
     artifacts: [ymlPath],
