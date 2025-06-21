@@ -1,0 +1,20 @@
+[
+  {
+    "id": "a9c8b3aa-87b7-408a-915a-7a6e2ba06e5e",
+    "type": "agent_run_start",
+    "timestamp": 1750313478495,
+    "sessionId": "1750313478495-1xzgbsd",
+    "runOptions": {
+      "input": "How's the weather today?",
+      "toolCallEngine": "structured_outputs"
+    },
+    "provider": "volcengine",
+    "model": "ep-20250510145437-5sxhs"
+  },
+  {
+    "id": "911e3d7f-695d-4f77-9e5b-e9b26f02cf1f",
+    "type": "user_message",
+    "timestamp": 1750313478495,
+    "content": "How's the weather today?"
+  }
+]

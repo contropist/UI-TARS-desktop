@@ -1,0 +1,304 @@
+[
+  {
+    "id": "fa45066c-d8fc-4109-b2d5-cfd1e89aa14b",
+    "type": "agent_run_start",
+    "timestamp": 1750313540578,
+    "sessionId": "1750313540578-g5fyti8",
+    "runOptions": {
+      "input": "How's the weather today?",
+      "stream": true,
+      "toolCallEngine": "structured_outputs"
+    },
+    "provider": "volcengine",
+    "model": "ep-20250510145437-5sxhs"
+  },
+  {
+    "id": "05464806-1be0-4caf-8939-c12185e6fc43",
+    "type": "user_message",
+    "timestamp": 1750313540578,
+    "content": "How's the weather today?"
+  },
+  {
+    "id": "2245e14b-4d33-4ac3-9a77-81ddc2fc5c25",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313540934,
+    "content": "To",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "47e31ac7-9e27-4e13-8f6e-268bceede6b6",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541042,
+    "content": " get",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "5f697575-8f48-4229-93f1-141a214445b2",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541042,
+    "content": " the",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "ab16b344-aaf6-484a-96ac-f5c8ffff0669",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541043,
+    "content": " weather",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "6e32f119-e16a-49fb-9afd-a9e70f16ed97",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541116,
+    "content": ", I",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "925c0f41-5c37-411a-8b57-baa7ba3f390d",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541117,
+    "content": " need",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "0a3f039e-8720-4b39-b5cc-423ce6f1b2c3",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541117,
+    "content": " your",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "0a6ed1da-e981-4e01-838f-d3b783ad440d",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541118,
+    "content": " current",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "369aa2c7-e3d3-4375-bfef-b24fd38d12a5",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541228,
+    "content": " location",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "e2fdfbd2-8422-40e9-864f-5a70baf03af8",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541246,
+    "content": " first",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "591cae7d-3794-4646-a793-2cbdc93b14a6",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541247,
+    "content": ".",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "beda7d89-dd8c-4743-964b-d992916655cb",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541247,
+    "content": " Retriev",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "046c18b1-ef71-4825-95cc-630654afe92b",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541278,
+    "content": "ing",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "8834a1c3-540a-44ed-9df6-517c42a7bcbb",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541278,
+    "content": " your",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "bd5344f4-a5d5-4fed-abe7-64ed9e9ccec6",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541278,
+    "content": " location",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "8f05859b-8a22-475e-834c-2c3a52b3309d",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313541278,
+    "content": "...",
+    "isComplete": false,
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "d84b41ea-442c-4e83-a1dc-fdb87d8bf922",
+    "type": "assistant_message",
+    "timestamp": 1750313541619,
+    "content": "To get the weather, I need your current location first. Retrieving your location...",
+    "toolCalls": [
+      {
+        "id": "call_1750313541619_a1xxz",
+        "type": "function",
+        "function": {
+          "name": "getCurrentLocation",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "finishReason": "tool_calls",
+    "messageId": "msg_1750313540844_obxos3gc"
+  },
+  {
+    "id": "fa85f994-fa6e-42c8-8fdc-901e90b9a2d0",
+    "type": "tool_call",
+    "timestamp": 1750313541621,
+    "toolCallId": "call_1750313541619_a1xxz",
+    "name": "getCurrentLocation",
+    "arguments": {},
+    "startTime": 1750313541621,
+    "tool": {
+      "name": "getCurrentLocation",
+      "description": "Get user's current location",
+      "schema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "id": "27ad8cd1-3de8-479e-8e2a-654edb6bb2c8",
+    "type": "tool_result",
+    "timestamp": 1750313541622,
+    "toolCallId": "call_1750313541619_a1xxz",
+    "name": "getCurrentLocation",
+    "content": {
+      "location": "Boston"
+    },
+    "elapsedMs": 0
+  },
+  {
+    "id": "b42aca5d-7454-484d-b8f1-5ec7b980057d",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313542000,
+    "content": "Fetch",
+    "isComplete": false,
+    "messageId": "msg_1750313541906_lactmfx1"
+  },
+  {
+    "id": "d0893565-48db-4e45-9de2-0e14ce053824",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313542112,
+    "content": "ing",
+    "isComplete": false,
+    "messageId": "msg_1750313541906_lactmfx1"
+  },
+  {
+    "id": "e9e6d1df-18e2-4c8f-a176-5676ab45c983",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313542112,
+    "content": " weather",
+    "isComplete": false,
+    "messageId": "msg_1750313541906_lactmfx1"
+  },
+  {
+    "id": "4a76411c-3be9-4396-86d0-8f66743986d4",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313542113,
+    "content": " for",
+    "isComplete": false,
+    "messageId": "msg_1750313541906_lactmfx1"
+  },
+  {
+    "id": "6c859e07-1c8e-49ea-b65d-5fef1c74c458",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313542113,
+    "content": " Boston",
+    "isComplete": false,
+    "messageId": "msg_1750313541906_lactmfx1"
+  },
+  {
+    "id": "d227a48d-cf7a-42b8-a103-875d26bbd574",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750313542184,
+    "content": "...",
+    "isComplete": false,
+    "messageId": "msg_1750313541906_lactmfx1"
+  },
+  {
+    "id": "3facdd32-050c-4100-9e5f-a24c15f70326",
+    "type": "assistant_message",
+    "timestamp": 1750313542585,
+    "content": "Fetching weather for Boston...",
+    "toolCalls": [
+      {
+        "id": "call_1750313542585_2tari",
+        "type": "function",
+        "function": {
+          "name": "getWeather",
+          "arguments": "{\"location\":\"Boston\"}"
+        }
+      }
+    ],
+    "finishReason": "tool_calls",
+    "messageId": "msg_1750313541906_lactmfx1"
+  },
+  {
+    "id": "e392283d-ce30-4eaa-a674-4fca5c8fef1b",
+    "type": "tool_call",
+    "timestamp": 1750313542587,
+    "toolCallId": "call_1750313542585_2tari",
+    "name": "getWeather",
+    "arguments": {
+      "location": "Boston"
+    },
+    "startTime": 1750313542587,
+    "tool": {
+      "name": "getWeather",
+      "description": "Get weather information for a specified location",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "Location name, such as city name"
+          }
+        },
+        "required": [
+          "location"
+        ]
+      }
+    }
+  },
+  {
+    "id": "6f497048-587c-48f9-95e7-58c52dbd9d61",
+    "type": "tool_result",
+    "timestamp": 1750313542588,
+    "toolCallId": "call_1750313542585_2tari",
+    "name": "getWeather",
+    "content": {
+      "location": "Boston",
+      "temperature": "70°F (21°C)",
+      "condition": "Sunny",
+      "precipitation": "10%",
+      "humidity": "45%",
+      "wind": "5 mph"
+    },
+    "elapsedMs": 0
+  }
+]

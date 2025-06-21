@@ -2,7 +2,7 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { logger } from '@main/logger';
 import * as env from '@main/env';
@@ -10,7 +10,6 @@ import * as env from '@main/env';
 import { createWindow } from './createWindow';
 
 let mainWindow: BrowserWindow | null = null;
-let settingsWindow: BrowserWindow | null = null;
 
 export function showInactive() {
   if (mainWindow) {
@@ -28,8 +27,8 @@ export function show() {
 export function createMainWindow() {
   mainWindow = createWindow({
     routerPath: '/',
-    width: 430,
-    height: 580,
+    width: 1200,
+    height: 700,
     alwaysOnTop: false,
   });
 
@@ -37,78 +36,24 @@ export function createMainWindow() {
     logger.info('mainWindow closed');
     if (env.isMacOS) {
       event.preventDefault();
-      mainWindow?.hide();
+
+      // Black screen on window close in fullscreen mode
+      // https://github.com/electron/electron/issues/20263#issuecomment-633179965
+      if (mainWindow?.isFullScreen()) {
+        mainWindow?.setFullScreen(false);
+
+        mainWindow?.once('leave-full-screen', () => {
+          mainWindow?.hide();
+        });
+      } else {
+        mainWindow?.hide();
+      }
     } else {
       mainWindow = null;
     }
   });
 
   return mainWindow;
-}
-
-export function createSettingsWindow(
-  config: { childPath?: string; showInBackground?: boolean } = {
-    childPath: '',
-    showInBackground: false,
-  },
-) {
-  const { childPath = '', showInBackground = false } = config;
-  if (settingsWindow) {
-    settingsWindow.show();
-    return settingsWindow;
-  }
-
-  const mainWindowBounds = mainWindow?.getBounds();
-  console.log('mainWindowBounds', mainWindowBounds);
-
-  const width = 480;
-  const height = 600;
-
-  let x, y;
-  if (mainWindowBounds) {
-    // 计算设置窗口的位置，使其相对于主窗口居中
-    x = Math.round(mainWindowBounds.x + (mainWindowBounds.width - width) / 2);
-    y = Math.round(mainWindowBounds.y + (mainWindowBounds.height - height) / 2);
-  }
-
-  settingsWindow = createWindow({
-    routerPath: `#settings/${childPath}`,
-    ...(x && y ? { x, y } : {}),
-    width,
-    height,
-    resizable: false,
-    movable: true,
-    alwaysOnTop: true,
-    showInBackground,
-  });
-
-  settingsWindow.on('close', (event) => {
-    if (env.isMacOS) {
-      event.preventDefault();
-      settingsWindow?.hide();
-    } else {
-      settingsWindow = null;
-    }
-
-    // if mainWindow is not visible, show it
-    if (mainWindow?.isMinimized()) {
-      mainWindow?.restore();
-    }
-    mainWindow?.setAlwaysOnTop(true);
-    mainWindow?.show();
-    mainWindow?.focus();
-    setTimeout(() => {
-      mainWindow?.setAlwaysOnTop(false);
-    }, 100);
-  });
-
-  return settingsWindow;
-}
-
-export async function closeSettingsWindow() {
-  if (settingsWindow) {
-    settingsWindow.close();
-  }
 }
 
 export function setContentProtection(enable: boolean) {
@@ -122,38 +67,26 @@ export async function showWindow() {
   mainWindow?.restore();
 }
 
-export async function hideWindowBlock<T>(
-  operation: () => Promise<T> | T,
-): Promise<T> {
-  let originalBounds: Electron.Rectangle | undefined;
-
+export async function hideMainWindow() {
   try {
     mainWindow?.setContentProtection(true);
     mainWindow?.setAlwaysOnTop(true);
     mainWindow?.setFocusable(false);
-    try {
-      if (mainWindow) {
-        originalBounds = mainWindow.getBounds();
-        const { width: screenWidth } = screen.getPrimaryDisplay().size;
-        mainWindow.setPosition(screenWidth - originalBounds.width, 0);
-      }
-    } catch (e) {
-      logger.error(e);
-    }
+    mainWindow?.hide();
+  } catch (error) {
+    logger.error('[hideMainWindow]', error);
+  }
+}
 
-    const result = await Promise.resolve(operation());
-    return result;
-  } finally {
+export async function showMainWindow() {
+  try {
     mainWindow?.setContentProtection(false);
     setTimeout(() => {
       mainWindow?.setAlwaysOnTop(false);
     }, 100);
-    // restore mainWindow
-    if (mainWindow && originalBounds) {
-      mainWindow?.setBounds(originalBounds);
-    }
     mainWindow?.setFocusable(true);
+    mainWindow?.show();
+  } catch (error) {
+    logger.error('[showMainWindow]', error);
   }
 }
-
-export { LauncherWindow } from './LauncherWindow';

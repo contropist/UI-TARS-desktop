@@ -78,7 +78,7 @@ export class NutJSOperator extends Operator {
         w: width,
         h: height,
       })
-      .getBuffer('image/jpeg', { quality: 75 });
+      .getBuffer('image/png'); // Use png format to avoid compression
 
     const output = {
       base64: physicalScreenImage.toString('base64'),
@@ -117,10 +117,60 @@ export class NutJSOperator extends Operator {
     //   logger.info('[execute] [Region]', region);
     // }
 
+    const getHotkeys = (keyStr: string | undefined): Key[] => {
+      if (keyStr) {
+        const platformCommandKey =
+          process.platform === 'darwin' ? Key.LeftCmd : Key.LeftWin;
+        const platformCtrlKey =
+          process.platform === 'darwin' ? Key.LeftCmd : Key.LeftControl;
+        const keyMap = {
+          return: Key.Enter,
+          ctrl: platformCtrlKey,
+          shift: Key.LeftShift,
+          alt: Key.LeftAlt,
+          'page down': Key.PageDown,
+          'page up': Key.PageUp,
+          meta: platformCommandKey,
+          win: platformCommandKey,
+          command: platformCommandKey,
+          cmd: platformCommandKey,
+          ',': Key.Comma,
+          arrowup: Key.Up,
+          arrowdown: Key.Down,
+          arrowleft: Key.Left,
+          arrowright: Key.Right,
+        } as const;
+
+        const lowercaseKeyMap = Object.fromEntries(
+          Object.entries(Key).map(([k, v]) => [k.toLowerCase(), v]),
+        ) as {
+          [K in keyof typeof Key as Lowercase<K>]: (typeof Key)[K];
+        };
+
+        const keys = keyStr
+          .split(/[\s+]/)
+          .map((k) => k.toLowerCase())
+          .map(
+            (k) =>
+              keyMap[k as keyof typeof keyMap] ??
+              lowercaseKeyMap[k as Lowercase<keyof typeof Key>],
+          )
+          .filter(Boolean);
+        logger.info('[NutjsOperator] hotkey: ', keys);
+        return keys;
+      } else {
+        logger.error(
+          '[NutjsOperator] hotkey error: ',
+          `${keyStr} is not a valid key`,
+        );
+        return [];
+      }
+    };
+
     switch (action_type) {
       case 'wait':
         logger.info('[NutjsOperator] wait', action_inputs);
-        await sleep(1000);
+        await sleep(5000);
         break;
 
       case 'mouse_move':
@@ -215,35 +265,27 @@ export class NutJSOperator extends Operator {
 
       case 'hotkey': {
         const keyStr = action_inputs?.key || action_inputs?.hotkey;
-        if (keyStr) {
-          const platformCommandKey =
-            process.platform === 'darwin' ? Key.LeftCmd : Key.LeftWin;
-          const keyMap: Record<string, Key> = {
-            return: Key.Enter,
-            enter: Key.Enter,
-            ctrl: Key.LeftControl,
-            shift: Key.LeftShift,
-            alt: Key.LeftAlt,
-            space: Key.Space,
-            'page down': Key.PageDown,
-            pagedown: Key.PageDown,
-            'page up': Key.PageUp,
-            pageup: Key.PageUp,
-            meta: platformCommandKey,
-            win: platformCommandKey,
-            command: platformCommandKey,
-            cmd: platformCommandKey,
-          };
-
-          const keys = keyStr
-            .split(/[\s+]/)
-            .map(
-              (k) =>
-                keyMap[k.toLowerCase()] ||
-                Key[k.toUpperCase() as keyof typeof Key],
-            );
-          logger.info('[NutjsOperator] hotkey: ', keys);
+        const keys = getHotkeys(keyStr);
+        if (keys.length > 0) {
           await keyboard.pressKey(...keys);
+          await keyboard.releaseKey(...keys);
+        }
+        break;
+      }
+
+      case 'press': {
+        const keyStr = action_inputs?.key || action_inputs?.hotkey;
+        const keys = getHotkeys(keyStr);
+        if (keys.length > 0) {
+          await keyboard.pressKey(...keys);
+        }
+        break;
+      }
+
+      case 'release': {
+        const keyStr = action_inputs?.key || action_inputs?.hotkey;
+        const keys = getHotkeys(keyStr);
+        if (keys.length > 0) {
           await keyboard.releaseKey(...keys);
         }
         break;
@@ -274,6 +316,7 @@ export class NutJSOperator extends Operator {
       case 'error_env':
       case 'call_user':
       case 'finished':
+      case 'user_stop':
         return { status: StatusEnum.END };
 
       default:

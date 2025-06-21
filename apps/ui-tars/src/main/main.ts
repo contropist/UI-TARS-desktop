@@ -8,7 +8,6 @@ import {
   BrowserView,
   BrowserWindow,
   desktopCapturer,
-  globalShortcut,
   ipcMain,
   session,
   WebContentsView,
@@ -19,11 +18,7 @@ import ElectronStore from 'electron-store';
 
 import * as env from '@main/env';
 import { logger } from '@main/logger';
-import {
-  LauncherWindow,
-  createMainWindow,
-  createSettingsWindow,
-} from '@main/window/index';
+import { createMainWindow } from '@main/window/index';
 import { registerIpcMain } from '@ui-tars/electron-ipc/main';
 import { ipcRoutes } from './ipcRoutes';
 
@@ -33,6 +28,8 @@ import { SettingStore } from './store/setting';
 import { createTray } from './tray';
 import { registerSettingsHandlers } from './services/settings';
 import { sanitizeState } from './utils/sanitizeState';
+import { windowManager } from './services/windowManager';
+import { checkBrowserAvailability } from './services/browserCheck';
 
 const { isProd } = env;
 
@@ -85,6 +82,8 @@ const initializeApp = async () => {
     logger.info('ensureScreenCapturePermission', ensureScreenCapturePermission);
   }
 
+  await checkBrowserAvailability();
+
   // if (env.isDev) {
   await loadDevDebugTools();
   // }
@@ -96,15 +95,8 @@ const initializeApp = async () => {
   // Send app launched event
   await UTIOService.getInstance().appLaunched();
 
-  const launcherWindowIns = LauncherWindow.getInstance();
-
-  globalShortcut.register('Alt+T', () => {
-    launcherWindowIns.show();
-  });
-
   logger.info('createMainWindow');
   let mainWindow = createMainWindow();
-  const settingsWindow = createSettingsWindow({ showInBackground: true });
 
   session.defaultSession.setDisplayMediaRequestHandler(
     (_request, callback) => {
@@ -122,11 +114,7 @@ const initializeApp = async () => {
 
   logger.info('mainZustandBridge');
 
-  const { unsubscribe } = registerIPCHandlers([
-    mainWindow,
-    settingsWindow,
-    ...(launcherWindowIns.getWindow() ? [launcherWindowIns.getWindow()!] : []),
-  ]);
+  const { unsubscribe } = registerIPCHandlers([mainWindow]);
 
   app.on('window-all-closed', () => {
     logger.info('window-all-closed');
@@ -185,18 +173,17 @@ const registerIPCHandlers = (
     return sanitizeState(state);
   });
 
+  // 初始化时注册已有窗口
+  wrappers.forEach((wrapper) => {
+    if (wrapper instanceof BrowserWindow) {
+      windowManager.registerWindow(wrapper);
+    }
+  });
+
   // only send state to the wrappers that are not destroyed
   ipcMain.on('subscribe', (state: unknown) => {
-    for (const wrapper of wrappers) {
-      const webContents = wrapper?.webContents;
-      if (webContents?.isDestroyed()) {
-        break;
-      }
-      webContents?.send(
-        'subscribe',
-        sanitizeState(state as Record<string, unknown>),
-      );
-    }
+    const sanitizedState = sanitizeState(state as Record<string, unknown>);
+    windowManager.broadcast('subscribe', sanitizedState);
   });
 
   const unsubscribe = store.subscribe((state: unknown) =>
@@ -243,4 +230,5 @@ app
 
     logger.info('app.whenReady end');
   })
+
   .catch(console.log);
