@@ -8,11 +8,11 @@
  */
 import { EventEmitter } from 'node:events';
 import { v4 as uuidv4 } from 'uuid';
-import { type Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { type SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import {
   type StdioServerParameters,
-  type StdioClientTransport,
+  StdioClientTransport,
 } from '@modelcontextprotocol/sdk/client/stdio.js';
 import {
   type Tool,
@@ -22,14 +22,13 @@ import { z } from 'zod';
 import type {
   BuiltInMCPServer,
   MCPServer,
-  SSEMCPServer,
   StdioMCPServer,
-  StreamableHTTPMCPServer,
 } from '@agent-infra/mcp-shared/client';
 import {
   StreamableHTTPClientTransport,
   type StreamableHTTPClientTransportOptions,
 } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 export { type MCPServer };
 
@@ -51,9 +50,6 @@ export class MCPClient<
   private clients: {
     [key in ServerNames]?: Client;
   } = {};
-  private Client!: typeof Client;
-  private StdioTransport!: typeof StdioClientTransport;
-  private SSETransport!: typeof SSEClientTransport;
   private initialized = false;
   private initPromise: Promise<void> | null = null;
   private store: Map<string, any> = new Map();
@@ -72,10 +68,6 @@ export class MCPClient<
         status: s.status || 'activate',
       })),
     );
-
-    this.init().catch((err) => {
-      this.log('error', '[MCP] Failed to initialize MCP service:', err);
-    });
   }
 
   private log(level: 'info' | 'error' | 'warn' | 'debug', ...args: any[]) {
@@ -97,9 +89,6 @@ export class MCPClient<
     this.initPromise = (async () => {
       try {
         this.log('info', '[MCP] Starting initialization');
-        this.Client = await this.importClient();
-        this.StdioTransport = await this.importStdioClientTransport();
-        this.SSETransport = await this.importSSEClientTransport();
 
         this.initialized = true;
 
@@ -115,42 +104,6 @@ export class MCPClient<
     })();
 
     return this.initPromise;
-  }
-
-  private async importClient() {
-    try {
-      const { Client } = await import(
-        '@modelcontextprotocol/sdk/client/index.js'
-      );
-      return Client;
-    } catch (err) {
-      console.error('[MCP] Failed to import Client:', err);
-      throw err;
-    }
-  }
-
-  private async importStdioClientTransport() {
-    try {
-      const { StdioClientTransport } = await import(
-        '@modelcontextprotocol/sdk/client/stdio.js'
-      );
-      return StdioClientTransport;
-    } catch (err) {
-      console.error('[MCP] Failed to import Transport:', err);
-      throw err;
-    }
-  }
-
-  private async importSSEClientTransport() {
-    try {
-      const { SSEClientTransport } = await import(
-        '@modelcontextprotocol/sdk/client/sse.js'
-      );
-      return SSEClientTransport;
-    } catch (err) {
-      console.error('[MCP] Failed to import SSEClientTransport:', err);
-      throw err;
-    }
   }
 
   private async ensureInitialized() {
@@ -228,20 +181,7 @@ export class MCPClient<
     try {
       const { name } = server;
 
-      // built-in mcp servers
-      if ('localClient' in server) {
-        const { localClient } = server as BuiltInMCPServer<ServerNames>;
-        // @ts-ignore
-        this.clients[name] = localClient;
-        // @ts-ignore
-        this.activeServers.set(name, { client: localClient, server });
-
-        this.log('info', `[MCP] Server ${name} started successfully`);
-        this.emit('server-started', { name });
-        return;
-      }
-
-      const client = new this.Client(
+      const client = new Client(
         {
           name: name,
           version: '1.0.0',
@@ -253,7 +193,8 @@ export class MCPClient<
       let transport:
         | StdioClientTransport
         | SSEClientTransport
-        | StreamableHTTPClientTransport;
+        | StreamableHTTPClientTransport
+        | InMemoryTransport;
 
       if ('url' in server) {
         const { url, headers = {}, type } = server;
@@ -264,7 +205,7 @@ export class MCPClient<
             },
           } as StreamableHTTPClientTransportOptions);
         } else if (type === 'sse') {
-          transport = new this.SSETransport(new URL(url), {
+          transport = new SSEClientTransport(new URL(url), {
             eventSourceInit: {
               fetch: (url, init) => fetch(url, { ...init, headers }),
             },
@@ -275,6 +216,8 @@ export class MCPClient<
         } else {
           throw new Error('Invalid server type');
         }
+
+        await client.connect(transport);
       } else if ('command' in server) {
         const { command, args, env, cwd } =
           server as StdioMCPServer<ServerNames>;
@@ -299,12 +242,28 @@ export class MCPClient<
           env: mergedEnv as Record<string, string>,
           ...(cwd ? { cwd } : {}),
         };
-        transport = new this.StdioTransport(transportOpts);
+        transport = new StdioClientTransport(transportOpts);
+
+        await client.connect(transport);
+      } else if ('mcpServer' in server) {
+        const { mcpServer } = server;
+
+        const [clientTransport, serverTransport] =
+          InMemoryTransport.createLinkedPair();
+
+        transport = clientTransport;
+
+        await Promise.all([
+          client.connect(clientTransport),
+          mcpServer.connect(serverTransport),
+        ]);
+
+        this.log('info', `[MCP] Server ${name} started successfully`);
+        this.emit('server-started', { name });
       } else {
         throw new Error('No command or url provided for server');
       }
 
-      await client.connect(transport);
       this.clients[name] = client;
       this.activeServers.set(name, { client, server });
 
@@ -373,8 +332,27 @@ export class MCPClient<
         await this.activate(server);
       }
     } catch (error) {
-      console.error('Failed to add MCP server:', error);
+      this.log('error', `Failed to add MCP server: ${error}`);
       throw error;
+    }
+  }
+
+  public async getServer(
+    name: ServerNames,
+  ): Promise<MCPServer<ServerNames> | undefined> {
+    await this.ensureInitialized();
+    try {
+      const servers = this.getServersFromStore();
+      const server = servers.find((s) => s.name === name);
+
+      if (!server) {
+        throw new Error(`Server ${name} not found`);
+      }
+
+      return server;
+    } catch (error) {
+      this.log('error', '[MCP] Error deactivating server:', error);
+      return undefined;
     }
   }
 
@@ -532,12 +510,19 @@ export class MCPClient<
       if (!this.clients[client]) {
         throw new Error(`MCP Client ${client} not found`);
       }
+      const server = await this.getServer(client);
 
       this.log('info', '[MCP] Calling:', client, name, args);
-      const result = await this.clients[client].callTool({
-        name,
-        arguments: args,
-      });
+      const result = await this.clients[client].callTool(
+        {
+          name,
+          arguments: args,
+        },
+        undefined,
+        {
+          timeout: server?.timeout ? server?.timeout * 1000 : 10000, // default: 10s
+        },
+      );
       this.log('info', '[MCP] Call Tool Result:', result);
       return result;
     } catch (error) {

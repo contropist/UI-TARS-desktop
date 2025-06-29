@@ -1,0 +1,167 @@
+[
+  {
+    "id": "19404c23-56b2-4687-9525-646b499c5fea",
+    "type": "user_message",
+    "timestamp": 1750691028221,
+    "content": "How's the weather today?"
+  },
+  {
+    "id": "9057927f-ddc6-4dec-8e81-b00033479469",
+    "type": "agent_run_start",
+    "timestamp": 1750691028221,
+    "sessionId": "1750691028221-z0oytzw",
+    "runOptions": {
+      "input": "How's the weather today?",
+      "stream": true
+    },
+    "provider": "azure-openai",
+    "model": "aws_sdk_claude37_sonnet"
+  },
+  {
+    "id": "bb1bfd7b-ab8a-4a0a-a505-402c323066dc",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750691030130,
+    "content": "I'll",
+    "isComplete": false,
+    "messageId": "msg_1750691029909_9b9ijldz"
+  },
+  {
+    "id": "eba87e5c-e068-4740-bbdf-ce1b46f37889",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750691030364,
+    "content": " check the weather for your current",
+    "isComplete": false,
+    "messageId": "msg_1750691029909_9b9ijldz"
+  },
+  {
+    "id": "f7ed3255-8844-41ba-b616-fa7b54a69414",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750691030627,
+    "content": " location.",
+    "isComplete": false,
+    "messageId": "msg_1750691029909_9b9ijldz"
+  },
+  {
+    "id": "0f16504b-433c-434f-a2a9-3eee7d41eda6",
+    "type": "assistant_message",
+    "timestamp": 1750691031272,
+    "content": "I'll check the weather for your current location.",
+    "toolCalls": [
+      {
+        "id": "call_1750691031272_zowcx",
+        "type": "function",
+        "function": {
+          "name": "getCurrentLocation",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "finishReason": "tool_calls",
+    "messageId": "msg_1750691029909_9b9ijldz"
+  },
+  {
+    "id": "d4846a9c-cc1b-4649-85bc-7bbc6767cb52",
+    "type": "tool_call",
+    "timestamp": 1750691031273,
+    "toolCallId": "call_1750691031272_zowcx",
+    "name": "getCurrentLocation",
+    "arguments": {},
+    "startTime": 1750691031273,
+    "tool": {
+      "name": "getCurrentLocation",
+      "description": "Get user's current location",
+      "schema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "id": "84f8fbac-5ade-4afc-b37e-6d6b4b648d54",
+    "type": "tool_result",
+    "timestamp": 1750691031274,
+    "toolCallId": "call_1750691031272_zowcx",
+    "name": "getCurrentLocation",
+    "content": {
+      "location": "Boston"
+    },
+    "elapsedMs": 0
+  },
+  {
+    "id": "0088a9dd-29a1-446a-a9c1-42c7aa10a99b",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750691032986,
+    "content": "I",
+    "isComplete": false,
+    "messageId": "msg_1750691032830_mgxi79nn"
+  },
+  {
+    "id": "da910681-decc-4552-8d22-ce9ed22773e3",
+    "type": "assistant_streaming_message",
+    "timestamp": 1750691033178,
+    "content": "'ll check the weather in Boston for you.",
+    "isComplete": false,
+    "messageId": "msg_1750691032830_mgxi79nn"
+  },
+  {
+    "id": "a7d1e086-69e4-47cb-a8a4-919b8fa3cf73",
+    "type": "assistant_message",
+    "timestamp": 1750691034014,
+    "content": "I'll check the weather in Boston for you.",
+    "toolCalls": [
+      {
+        "id": "call_1750691034014_7hp88",
+        "type": "function",
+        "function": {
+          "name": "getWeather",
+          "arguments": "{\"location\":\"Boston\"}"
+        }
+      }
+    ],
+    "finishReason": "tool_calls",
+    "messageId": "msg_1750691032830_mgxi79nn"
+  },
+  {
+    "id": "75a78f6f-85d3-44d3-95e0-d91e04cddc11",
+    "type": "tool_call",
+    "timestamp": 1750691034015,
+    "toolCallId": "call_1750691034014_7hp88",
+    "name": "getWeather",
+    "arguments": {
+      "location": "Boston"
+    },
+    "startTime": 1750691034015,
+    "tool": {
+      "name": "getWeather",
+      "description": "Get weather information for a specified location",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "Location name, such as city name"
+          }
+        },
+        "required": [
+          "location"
+        ]
+      }
+    }
+  },
+  {
+    "id": "c74e9127-e00f-4d0f-ab9a-5199ce132298",
+    "type": "tool_result",
+    "timestamp": 1750691034015,
+    "toolCallId": "call_1750691034014_7hp88",
+    "name": "getWeather",
+    "content": {
+      "location": "Boston",
+      "temperature": "70°F (21°C)",
+      "condition": "Sunny",
+      "precipitation": "10%",
+      "humidity": "45%",
+      "wind": "5 mph"
+    },
+    "elapsedMs": 0
+  }
+]

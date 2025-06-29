@@ -6,6 +6,9 @@
     [
       "@ui-tars/*",
       "!@ui-tars/visualizer"
+    ],
+    [
+      "@agent-infra/mcp-*"
     ]
   ],
   "linked": [],
@@ -15,10 +18,7 @@
   "ignore": [
     "ui-tars-desktop",
     "ui-tars-desktop-renderer",
-    "agent-tars-app",
-    "agent-tars-app-renderer",
     "@common/*",
-    "@agent-infra/*",
-    "!@agent-infra/logger"
+    "@agent-infra/mcp-benchmark"
   ]
 }

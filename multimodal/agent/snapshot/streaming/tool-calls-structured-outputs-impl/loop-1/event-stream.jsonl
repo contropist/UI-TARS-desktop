@@ -1,0 +1,20 @@
+[
+  {
+    "id": "19404c23-56b2-4687-9525-646b499c5fea",
+    "type": "user_message",
+    "timestamp": 1750691028221,
+    "content": "How's the weather today?"
+  },
+  {
+    "id": "9057927f-ddc6-4dec-8e81-b00033479469",
+    "type": "agent_run_start",
+    "timestamp": 1750691028221,
+    "sessionId": "1750691028221-z0oytzw",
+    "runOptions": {
+      "input": "How's the weather today?",
+      "stream": true
+    },
+    "provider": "azure-openai",
+    "model": "aws_sdk_claude37_sonnet"
+  }
+]
