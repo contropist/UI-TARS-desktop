@@ -3,14 +3,23 @@
  * Copyright (c) 2025 Bytedance, Inc. and its affiliates.
  * SPDX-License-Identifier: Apache-2.0
  */
-import { GUIAgentData, StatusEnum, ShareVersion } from '@ui-tars/shared/types';
+import {
+  GUIAgentData,
+  UITarsModelVersion,
+  StatusEnum,
+  ShareVersion,
+  ErrorStatusEnum,
+  GUIAgentError,
+  Message,
+} from '@ui-tars/shared/types';
 import { IMAGE_PLACEHOLDER, MAX_LOOP_COUNT } from '@ui-tars/shared/constants';
 import { sleep } from '@ui-tars/shared/utils';
 import asyncRetry from 'async-retry';
 import { Jimp } from 'jimp';
+import { v4 as uuidv4 } from 'uuid';
 
 import { setContext } from './context/useContext';
-import { Operator, GUIAgentConfig } from './types';
+import { Operator, GUIAgentConfig, InvokeParams } from './types';
 import { UITarsModel } from './Model';
 import { BaseGUIAgent } from './base';
 import {
@@ -25,6 +34,7 @@ import {
   SYSTEM_PROMPT,
   SYSTEM_PROMPT_TEMPLATE,
 } from './constants';
+import { InternalServerError } from 'openai';
 
 export class GUIAgent<T extends Operator> extends BaseGUIAgent<
   GUIAgentConfig<T>
@@ -32,7 +42,13 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
   private readonly operator: T;
   private readonly model: InstanceType<typeof UITarsModel>;
   private readonly logger: NonNullable<GUIAgentConfig<T>['logger']>;
+  private uiTarsVersion?: UITarsModelVersion;
   private systemPrompt: string;
+
+  private isPaused = false;
+  private resumePromise: Promise<void> | null = null;
+  private resolveResume: (() => void) | null = null;
+  private isStopped = false;
 
   constructor(config: GUIAgentConfig<T>) {
     super(config);
@@ -43,10 +59,15 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
         ? config.model
         : new UITarsModel(config.model);
     this.logger = config.logger || console;
+    this.uiTarsVersion = config.uiTarsVersion;
     this.systemPrompt = config.systemPrompt || this.buildSystemPrompt();
   }
 
-  async run(instruction: string) {
+  async run(
+    instruction: string,
+    historyMessages?: Message[],
+    remoteModelHdrs?: Record<string, string>,
+  ) {
     const { operator, model, logger } = this;
     const {
       signal,
@@ -87,33 +108,74 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
       }),
     );
 
+    logger.info(
+      `[GUIAgent] run:\nsystem prompt: ${this.systemPrompt},\nmodel version: ${this.uiTarsVersion},\nmodel config: ${JSON.stringify(this.model)}`,
+    );
+
     let loopCnt = 0;
     let snapshotErrCnt = 0;
+    let totalTokens = 0;
+    let totalTime = 0;
+    let previousResponseId: string | undefined;
 
     // start running agent
     data.status = StatusEnum.RUNNING;
     await onData?.({ data: { ...data, conversations: [] } });
 
+    // Generate session id with UUID
+    const sessionId = this.generateSessionId();
+
     try {
       // eslint-disable-next-line no-constant-condition
       while (true) {
-        console.log('[run_data_status]', data.status);
+        logger.info('[GUIAgent] loopCnt:', loopCnt);
+        // check pause status
+        if (this.isPaused && this.resumePromise) {
+          data.status = StatusEnum.PAUSE;
+          await onData?.({
+            data: {
+              ...data,
+              conversations: [],
+            },
+          });
+          await this.resumePromise;
+          data.status = StatusEnum.RUNNING;
+          await onData?.({
+            data: {
+              ...data,
+              conversations: [],
+            },
+          });
+        }
 
-        if (data.status !== StatusEnum.RUNNING || signal?.aborted) {
-          signal?.aborted && (data.status = StatusEnum.END);
-          await onData?.({ data: { ...data, conversations: [] } });
+        if (
+          this.isStopped ||
+          (data.status !== StatusEnum.RUNNING &&
+            data.status !== StatusEnum.PAUSE) ||
+          signal?.aborted
+        ) {
+          // check if stop or aborted
+          signal?.aborted && (data.status = StatusEnum.USER_STOPPED);
           break;
         }
 
-        if (loopCnt >= maxLoopCount || snapshotErrCnt >= MAX_SNAPSHOT_ERR_CNT) {
+        if (loopCnt >= maxLoopCount) {
           Object.assign(data, {
-            status: StatusEnum.MAX_LOOP,
-            errMsg:
-              loopCnt >= maxLoopCount
-                ? 'Exceeds the maximum number of loops'
-                : 'Too many screenshot failures',
+            status: StatusEnum.ERROR,
+            error: this.guiAgentErrorParser(
+              ErrorStatusEnum.REACH_MAXLOOP_ERROR,
+            ),
           });
-          await onData?.({ data: { ...data, conversations: [] } });
+          break;
+        }
+
+        if (snapshotErrCnt >= MAX_SNAPSHOT_ERR_CNT) {
+          Object.assign(data, {
+            status: StatusEnum.ERROR,
+            error: this.guiAgentErrorParser(
+              ErrorStatusEnum.SCREENSHOT_RETRY_ERROR,
+            ),
+          });
           break;
         }
 
@@ -122,6 +184,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
 
         const snapshot = await asyncRetry(() => operator.screenshot(), {
           retries: retry?.screenshot?.maxRetries ?? 0,
+          minTimeout: 5000,
           onRetry: retry?.screenshot?.onRetry,
         });
 
@@ -176,20 +239,32 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
 
         // conversations -> messages, images
         const modelFormat = toVlmModelFormat({
+          historyMessages: historyMessages || [],
           conversations: data.conversations,
           systemPrompt: data.systemPrompt,
         });
         // sliding images window to vlm model
-        const vlmParams = {
+        const vlmParams: InvokeParams = {
           ...processVlmParams(modelFormat.conversations, modelFormat.images),
           screenContext: {
             width,
             height,
           },
-          mime,
           scaleFactor: snapshot.scaleFactor,
+          uiTarsVersion: this.uiTarsVersion,
+          headers: {
+            ...remoteModelHdrs,
+            'X-Session-Id': sessionId,
+          },
+          previousResponseId,
         };
-        const { prediction, parsedPredictions } = await asyncRetry(
+        const {
+          prediction,
+          parsedPredictions,
+          costTime,
+          costTokens,
+          responseId,
+        } = await asyncRetry(
           async (bail) => {
             try {
               const result = await model.invoke(vlmParams);
@@ -206,23 +281,43 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
                   parsedPredictions: [],
                 };
               }
+
+              Object.assign(data, {
+                status: StatusEnum.ERROR,
+                error: this.guiAgentErrorParser(
+                  ErrorStatusEnum.INVOKE_RETRY_ERROR,
+                  error as Error,
+                ),
+              });
               throw error;
             }
           },
           {
             retries: retry?.model?.maxRetries ?? 0,
+            minTimeout: 1000 * 30,
             onRetry: retry?.model?.onRetry,
           },
         );
 
-        logger.info('[GUIAgent Response]:', prediction);
+        // responseId shouldn't be assigned to null or undefined
+        if (responseId) {
+          previousResponseId = responseId;
+        }
+
+        totalTokens += costTokens || 0;
+        totalTime += costTime || 0;
+
         logger.info(
-          'GUIAgent Parsed Predictions:',
+          `[GUIAgent] consumes: >>> costTime: ${costTime}, costTokens: ${costTokens} <<<`,
+        );
+        logger.info('[GUIAgent] Response:', prediction);
+        logger.info(
+          '[GUIAgent] Parsed Predictions:',
           JSON.stringify(parsedPredictions),
         );
 
         if (!prediction) {
-          logger.error('[GUIAgent Response Empty]:', prediction);
+          logger.error('[GUIAgent] Response Empty:', prediction);
           continue;
         }
 
@@ -257,26 +352,30 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
         for (const parsedPrediction of parsedPredictions) {
           const actionType = parsedPrediction.action_type;
 
-          logger.info('GUIAgent Action:', actionType);
+          logger.info('[GUIAgent] Action:', actionType);
 
           // handle internal action spaces
-          if (
-            [
-              INTERNAL_ACTION_SPACES_ENUM.CALL_USER,
-              INTERNAL_ACTION_SPACES_ENUM.ERROR_ENV,
-              INTERNAL_ACTION_SPACES_ENUM.FINISHED,
-            ].includes(actionType as unknown as INTERNAL_ACTION_SPACES_ENUM)
-          ) {
-            data.status = StatusEnum.END;
+          if (actionType === INTERNAL_ACTION_SPACES_ENUM.ERROR_ENV) {
+            Object.assign(data, {
+              status: StatusEnum.ERROR,
+              error: this.guiAgentErrorParser(
+                ErrorStatusEnum.ENVIRONMENT_ERROR,
+              ),
+            });
             break;
           } else if (actionType === INTERNAL_ACTION_SPACES_ENUM.MAX_LOOP) {
-            data.status = StatusEnum.MAX_LOOP;
+            Object.assign(data, {
+              status: StatusEnum.ERROR,
+              error: this.guiAgentErrorParser(
+                ErrorStatusEnum.REACH_MAXLOOP_ERROR,
+              ),
+            });
             break;
           }
 
-          if (!signal?.aborted) {
+          if (!signal?.aborted && !this.isStopped) {
             logger.info(
-              'GUIAgent Action Inputs:',
+              '[GUIAgent] Action Inputs:',
               parsedPrediction.action_inputs,
               parsedPrediction.action_type,
             );
@@ -293,52 +392,124 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
                 }),
               {
                 retries: retry?.execute?.maxRetries ?? 0,
+                minTimeout: 5000,
                 onRetry: retry?.execute?.onRetry,
               },
             ).catch((e) => {
-              logger.error('GUIAgent execute error', e);
+              logger.error('[GUIAgent] execute error', e);
+              Object.assign(data, {
+                status: StatusEnum.ERROR,
+                error: this.guiAgentErrorParser(
+                  ErrorStatusEnum.EXECUTE_RETRY_ERROR,
+                  e,
+                ),
+              });
             });
 
             if (executeOutput && executeOutput?.status) {
               data.status = executeOutput.status;
             }
           }
+
+          // Action types must break the loop after operator execution:
+          if (actionType === INTERNAL_ACTION_SPACES_ENUM.CALL_USER) {
+            data.status = StatusEnum.CALL_USER;
+            break;
+          } else if (actionType === INTERNAL_ACTION_SPACES_ENUM.FINISHED) {
+            data.status = StatusEnum.END;
+            break;
+          }
+        }
+
+        if (this.config.loopIntervalInMs && this.config.loopIntervalInMs > 0) {
+          logger.info(
+            `[GUIAgent] sleep for ${this.config.loopIntervalInMs}ms before next loop`,
+          );
+          await sleep(this.config.loopIntervalInMs);
+          logger.info(
+            `[GUIAgent] sleep for ${this.config.loopIntervalInMs}ms before next loop done`,
+          );
         }
       }
     } catch (error) {
+      logger.error('[GUIAgent] Catch error', error);
       if (
         error instanceof Error &&
         (error.name === 'AbortError' || error.message?.includes('aborted'))
       ) {
-        logger.info('Request was aborted');
+        logger.info('[GUIAgent] Catch: request was aborted');
+        data.status = StatusEnum.USER_STOPPED;
         return;
       }
 
-      logger.error('[GUIAgent] run error', error);
-      onError?.({
-        data,
-        error: {
-          code: -1,
-          error: 'GUIAgent Service Error',
-          stack: `${error}`,
-        },
-      });
-      throw error;
-    } finally {
-      const prevStatus = data.status;
-      data.status = StatusEnum.END;
+      data.status = StatusEnum.ERROR;
+      data.error = this.guiAgentErrorParser(
+        ErrorStatusEnum.UNKNOWN_ERROR,
+        error as Error,
+      );
 
-      if (data.status !== prevStatus) {
-        await onData?.({
-          data: {
-            ...data,
-            conversations: [],
+      // We only use OnError callback to dispatch error information to caller,
+      // and we will not throw error to the caller.
+      // throw error;
+    } finally {
+      logger.info('[GUIAgent] Finally: status', data.status);
+
+      this.model?.reset();
+
+      if (data.status === StatusEnum.USER_STOPPED) {
+        await operator.execute({
+          prediction: '',
+          parsedPrediction: {
+            action_inputs: {},
+            reflection: null,
+            action_type: 'user_stop',
+            thought: '',
           },
+          screenWidth: 0,
+          screenHeight: 0,
+          scaleFactor: 1,
+          factors: [0, 0],
         });
       }
 
-      logger.info('[GUIAgent] finally: status', data.status);
+      await onData?.({ data: { ...data, conversations: [] } });
+
+      if (data.status === StatusEnum.ERROR) {
+        onError?.({
+          data,
+          error:
+            data.error ||
+            new GUIAgentError(
+              ErrorStatusEnum.UNKNOWN_ERROR,
+              'Unknown error occurred',
+            ),
+        });
+      }
+
+      logger.info(
+        `[GUIAgent] >>> totalTokens: ${totalTokens}, totalTime: ${totalTime}, loopCnt: ${loopCnt} <<<`,
+      );
     }
+  }
+
+  public pause() {
+    this.isPaused = true;
+    this.resumePromise = new Promise((resolve) => {
+      this.resolveResume = resolve;
+    });
+  }
+
+  public resume() {
+    if (this.resolveResume) {
+      this.resolveResume();
+      this.resumePromise = null;
+      this.resolveResume = null;
+    }
+    this.isPaused = false;
+  }
+
+  public stop() {
+    this.isStopped = true;
   }
 
   private buildSystemPrompt() {
@@ -351,5 +522,84 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
           '{{action_spaces_holder}}',
           actionSpaces.join('\n'),
         );
+  }
+
+  private guiAgentErrorParser(
+    type: ErrorStatusEnum,
+    error?: Error,
+  ): GUIAgentError {
+    this.logger.error('[GUIAgent] guiAgentErrorParser:', error);
+
+    let parseError = null;
+
+    if (error instanceof InternalServerError) {
+      this.logger.error(
+        '[GUIAgent] guiAgentErrorParser instanceof InternalServerError.',
+      );
+      parseError = new GUIAgentError(
+        ErrorStatusEnum.MODEL_SERVICE_ERROR,
+        error.message,
+        error.stack,
+      );
+    }
+
+    if (!parseError && type === ErrorStatusEnum.REACH_MAXLOOP_ERROR) {
+      parseError = new GUIAgentError(
+        ErrorStatusEnum.REACH_MAXLOOP_ERROR,
+        `Has reached max loop count: ${error?.message || ''}`,
+        error?.stack,
+      );
+    }
+
+    if (!parseError && type === ErrorStatusEnum.SCREENSHOT_RETRY_ERROR) {
+      parseError = new GUIAgentError(
+        ErrorStatusEnum.SCREENSHOT_RETRY_ERROR,
+        `Too many screenshot failures: ${error?.message || ''}`,
+        error?.stack,
+      );
+    }
+
+    if (!parseError && type === ErrorStatusEnum.INVOKE_RETRY_ERROR) {
+      parseError = new GUIAgentError(
+        ErrorStatusEnum.INVOKE_RETRY_ERROR,
+        `Too many model invoke failures: ${error?.message || ''}`,
+        error?.stack,
+      );
+    }
+
+    if (!parseError && type === ErrorStatusEnum.EXECUTE_RETRY_ERROR) {
+      parseError = new GUIAgentError(
+        ErrorStatusEnum.EXECUTE_RETRY_ERROR,
+        `Too many action execute failures: ${error?.message || ''}`,
+        error?.stack,
+      );
+    }
+
+    if (!parseError && type === ErrorStatusEnum.ENVIRONMENT_ERROR) {
+      parseError = new GUIAgentError(
+        ErrorStatusEnum.ENVIRONMENT_ERROR,
+        `The environment error occurred when parsing the action: ${error?.message || ''}`,
+        error?.stack,
+      );
+    }
+
+    if (!parseError) {
+      parseError = new GUIAgentError(
+        ErrorStatusEnum.UNKNOWN_ERROR,
+        error instanceof Error ? error.message : 'Unknown error occurred',
+        error instanceof Error ? error.stack || 'null' : 'null',
+      );
+    }
+
+    if (!parseError.stack) {
+      // Avoid guiAgentErrorParser it self in stack trace
+      Error.captureStackTrace(parseError, this.guiAgentErrorParser);
+    }
+
+    return parseError;
+  }
+
+  private generateSessionId(): string {
+    return uuidv4();
   }
 }

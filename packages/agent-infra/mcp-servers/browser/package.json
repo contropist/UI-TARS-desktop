@@ -1,11 +1,16 @@
 {
   "name": "@agent-infra/mcp-server-browser",
-  "version": "0.0.1",
+  "version": "1.2.5",
   "description": "MCP server for browser use access",
   "license": "MIT",
-  "homepage": "https://modelcontextprotocol.io",
-  "bugs": "https://github.com/modelcontextprotocol/servers/issues",
+  "homepage": "https://github.com/bytedance/UI-TARS-desktop",
+  "bugs": "https://github.com/bytedance/UI-TARS-desktop/issues",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bytedance/UI-TARS-desktop.git",
+    "directory": "packages/agent-infra/mcp-servers/browser"
+  },
   "bin": {
     "mcp-server-browser": "dist/index.cjs"
   },
@@ -18,22 +23,37 @@
   "scripts": {
     "build": "shx rm -rf dist && rslib build && shx chmod +x dist/*.{js,cjs}",
     "dev": "npx -y @modelcontextprotocol/inspector tsx src/index.ts",
+    "dev:server": "tsx src/index.ts --port 3000 --vision",
+    "dev:vision": "npx -y @modelcontextprotocol/inspector tsx src/index.ts --vision",
     "prepare": "npm run build",
+    "prepublishOnly": "tsx scripts/update-readme.ts",
+    "test": "vitest run",
+    "test:bench": "vitest bench",
     "watch": "rslib build --watch"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.0"
+    "@ui-tars/action-parser": "workspace:^",
+    "mcp-http-server": "workspace:^",
+    "puppeteer-core": "24.7.2",
+    "@modelcontextprotocol/sdk": "~1.13.1"
   },
   "devDependencies": {
+    "jimp": "^1.6.0",
+    "mime-types": "^3.0.1",
+    "isbinaryfile": "^5.0.4",
+    "@types/mime-types": "^3.0.1",
+    "@agent-infra/shared": "workspace:*",
+    "mcp-proxy": "^3.0.3",
+    "get-port": "^7.1.0",
+    "commander": "^13.1.0",
+    "@types/lodash.merge": "4.6.9",
+    "lodash.merge": "4.6.2",
     "@agent-infra/logger": "workspace:*",
-    "@ghostery/adblocker-puppeteer": "2.5.0",
+    "@ghostery/adblocker-puppeteer": "2.5.2",
     "cross-fetch": "4.1.0",
     "@rslib/core": "0.5.3",
-    "turndown": "^7.2.0",
-    "turndown-plugin-gfm": "^1.0.2",
     "@agent-infra/browser": "workspace:*",
     "@agent-infra/browser-use": "workspace:*",
-    "puppeteer-core": "^24.1.1",
     "zod-to-json-schema": "^3.23.5",
     "zod": "^3.23.8",
     "tsx": "^4.19.3",

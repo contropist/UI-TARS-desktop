@@ -1,0 +1,66 @@
+[
+  {
+    "id": "7f89d36c-4e9f-4644-ae17-ca8c629095c2",
+    "type": "user_message",
+    "timestamp": 1750691028207,
+    "content": "How's the weather today?"
+  },
+  {
+    "id": "cba0aff5-4d53-4cd8-80b8-19d51f10216d",
+    "type": "agent_run_start",
+    "timestamp": 1750691028207,
+    "sessionId": "1750691028207-6tx58g9",
+    "runOptions": {
+      "input": "How's the weather today?",
+      "stream": true
+    },
+    "provider": "volcengine",
+    "model": "ep-20250510145437-5sxhs"
+  },
+  {
+    "id": "2d8ce86e-219e-4245-92d7-658084b7051c",
+    "type": "assistant_message",
+    "timestamp": 1750691030107,
+    "content": "",
+    "toolCalls": [
+      {
+        "id": "call_1747633091730_6m2magifs",
+        "type": "function",
+        "function": {
+          "name": "getCurrentLocation",
+          "arguments": "{}"
+        }
+      }
+    ],
+    "finishReason": "tool_calls",
+    "messageId": "msg_1750691029555_lo32tkle"
+  },
+  {
+    "id": "5fea6f76-c76c-4e79-a521-b7570474a781",
+    "type": "tool_call",
+    "timestamp": 1750691030108,
+    "toolCallId": "call_1747633091730_6m2magifs",
+    "name": "getCurrentLocation",
+    "arguments": {},
+    "startTime": 1750691030108,
+    "tool": {
+      "name": "getCurrentLocation",
+      "description": "Get user's current location",
+      "schema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
+  {
+    "id": "e53e33a5-9792-4389-8a16-bd6d9bedb259",
+    "type": "tool_result",
+    "timestamp": 1750691030109,
+    "toolCallId": "call_1747633091730_6m2magifs",
+    "name": "getCurrentLocation",
+    "content": {
+      "location": "Boston"
+    },
+    "elapsedMs": 0
+  }
+]

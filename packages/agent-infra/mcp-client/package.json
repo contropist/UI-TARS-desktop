@@ -1,17 +1,29 @@
 {
   "name": "@agent-infra/mcp-client",
-  "version": "0.4.2",
+  "version": "1.2.5",
   "description": "An MCP Client to run servers for Electron apps, support same-process approaching",
-  "private": false,
-  "type": "module",
   "types": "./dist/index.d.ts",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "homepage": "https://github.com/bytedance/UI-TARS-desktop",
+  "bugs": "https://github.com/bytedance/UI-TARS-desktop/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bytedance/UI-TARS-desktop.git",
+    "directory": "packages/agent-infra/mcp-client"
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "dev": "tsx src/test.ts",
+    "dev": "tsx examples/test.ts",
     "clean": "rm -rf dist",
     "build": "rslib build",
     "prepare": "npm run build",
@@ -21,7 +33,7 @@
     "test:integration": "vitest tests/integration"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.0",
+    "@modelcontextprotocol/sdk": "~1.13.1",
     "@agent-infra/mcp-shared": "workspace:*",
     "zod": "^3.23.8",
     "uuid": "^11.1.0"

@@ -184,6 +184,32 @@ Action: click(start_box='<bbox>637 964 637 964</bbox>')`;
       ]);
     });
 
+    it('should correctly parse new format input', () => {
+      const input = `<think>
+Okay, let's see. The user wants to search news, but the current search bar has "hi" in it. First, I need to clear that. The search bar has an 'X' button on the right, so clicking that will remove the existing text. Then, I can type "news" into the search bar. Wait, but maybe after clearing, I should enter the new search term. Let's check the steps again. Clear the search bar, type "news", then press enter or click the search icon. That should initiate a news search. Let's do that step by step.
+</think>
+Thought: To search for news, first clear the existing text "hi" from the Google search bar by clicking the 'X' icon. Then, type "news" into the search bar and press Enter to perform the search. This will display news-related results.
+Action: click(point='<point>510 150</point>')`;
+
+      const result = parseActionVlm(input, [1000, 1000], 'bc', {
+        width: 2560,
+        height: 1440,
+      });
+
+      expect(result).toEqual([
+        {
+          reflection: null,
+          thought:
+            'To search for news, first clear the existing text "hi" from the Google search bar by clicking the \'X\' icon. Then, type "news" into the search bar and press Enter to perform the search. This will display news-related results.',
+          action_type: 'click',
+          action_inputs: {
+            start_box: '[0.51,0.15,0.51,0.15]',
+            start_coords: [1305.6, 216],
+          },
+        },
+      ]);
+    });
+
     it('should correctly parse input with Reflection and Action_Summary', () => {
       const input = `Reflection: This is a reflection
 Action_Summary: This is a summary
@@ -433,6 +459,43 @@ Action: click(start_box='[130,226]')`;
           action_type: 'click',
           reflection: null,
           thought: '',
+        },
+      ]);
+    });
+
+    it('should handle with Chinese colon', () => {
+      const input = `Thought: I need to click this button
+Action：click(start_box='(100,200)')`;
+
+      const result = parseActionVlm(input, [1366, 768]);
+
+      expect(result).toEqual([
+        {
+          reflection: null,
+          thought: 'I need to click this button',
+          action_type: 'click',
+          action_inputs: {
+            start_box:
+              '[0.07320644216691069,0.2604166666666667,0.07320644216691069,0.2604166666666667]',
+          },
+        },
+      ]);
+    });
+
+    it('should handle with Chinese colon in the middle of the text', () => {
+      const input = `\n\nAction：click(start_box='<bbox>191 21 191 21</bbox>')`;
+
+      const result = parseActionVlm(input, [1366, 768]);
+
+      expect(result).toEqual([
+        {
+          reflection: null,
+          thought: '',
+          action_type: 'click',
+          action_inputs: {
+            start_box:
+              '[0.1398243045387994,0.02734375,0.1398243045387994,0.02734375]',
+          },
         },
       ]);
     });

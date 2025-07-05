@@ -5,24 +5,36 @@
 import assert from 'assert';
 
 import { logger } from '@main/logger';
-import { hideWindowBlock } from '@main/window/index';
 import { StatusEnum } from '@ui-tars/shared/types';
 import { type ConversationWithSoM } from '@main/shared/types';
 import { GUIAgent, type GUIAgentConfig } from '@ui-tars/sdk';
 import { markClickPosition } from '@main/utils/image';
 import { UTIOService } from '@main/services/utio';
 import { NutJSElectronOperator } from '../agent/operator';
-import { getSystemPrompt } from '../agent/prompts';
 import {
-  closeScreenMarker,
-  hidePauseButton,
-  hideScreenWaterFlow,
-  showPauseButton,
-  showPredictionMarker,
-  showScreenWaterFlow,
-} from '@main/window/ScreenMarker';
+  createRemoteBrowserOperator,
+  RemoteComputerOperator,
+} from '../remote/operators';
+import {
+  DefaultBrowserOperator,
+  RemoteBrowserOperator,
+} from '@ui-tars/operator-browser';
+import { showPredictionMarker } from '@main/window/ScreenMarker';
 import { SettingStore } from '@main/store/setting';
-import { AppState } from '@main/store/types';
+import { AppState, Operator } from '@main/store/types';
+import { GUIAgentManager } from '../ipcRoutes/agent';
+import { checkBrowserAvailability } from './browserCheck';
+import {
+  getModelVersion,
+  getSpByModelVersion,
+  beforeAgentRun,
+  afterAgentRun,
+  getLocalBrowserSearchEngine,
+} from '../utils/agent';
+import { FREE_MODEL_BASE_URL } from '../remote/shared';
+import { getAuthHeader } from '../remote/auth';
+import { ProxyClient } from '../remote/proxyClient';
+import { UITarsModelConfig } from '@ui-tars/sdk/core';
 
 export const runAgent = async (
   setState: (state: AppState) => void,
@@ -35,15 +47,14 @@ export const runAgent = async (
 
   const language = settings.language ?? 'en';
 
-  showPauseButton();
-  showScreenWaterFlow();
+  logger.info('settings.operator', settings.operator);
 
   const handleData: GUIAgentConfig<NutJSElectronOperator>['onData'] = async ({
     data,
   }) => {
     const lastConv = getState().messages[getState().messages.length - 1];
     const { status, conversations, ...restUserData } = data;
-    logger.info('[status]', status, conversations.length);
+    logger.info('[onGUIAgentData] status', status, conversations.length);
 
     // add SoM to conversations
     const conversationsWithSoM: ConversationWithSoM[] = await Promise.all(
@@ -82,7 +93,7 @@ export const runAgent = async (
       ...rest
     } = conversationsWithSoM?.[conversationsWithSoM.length - 1] || {};
     logger.info(
-      '======data======\n',
+      '[onGUIAgentData] ======data======\n',
       predictionParsed,
       screenshotContext,
       rest,
@@ -91,6 +102,7 @@ export const runAgent = async (
     );
 
     if (
+      settings.operator === Operator.LocalComputer &&
       predictionParsed?.length &&
       screenshotContext?.size &&
       !abortController?.signal?.aborted
@@ -106,23 +118,105 @@ export const runAgent = async (
     });
   };
 
+  let operatorType: 'computer' | 'browser' = 'computer';
+  let operator:
+    | NutJSElectronOperator
+    | DefaultBrowserOperator
+    | RemoteComputerOperator
+    | RemoteBrowserOperator;
+
+  switch (settings.operator) {
+    case Operator.LocalComputer:
+      operator = new NutJSElectronOperator();
+      operatorType = 'computer';
+      break;
+    case Operator.LocalBrowser:
+      await checkBrowserAvailability();
+      const { browserAvailable } = getState();
+      if (!browserAvailable) {
+        setState({
+          ...getState(),
+          status: StatusEnum.ERROR,
+          errorMsg:
+            'Browser is not available. Please install Chrome and try again.',
+        });
+        return;
+      }
+
+      operator = await DefaultBrowserOperator.getInstance(
+        false,
+        false,
+        false,
+        getState().status === StatusEnum.CALL_USER,
+        getLocalBrowserSearchEngine(settings.searchEngineForBrowser),
+      );
+      operatorType = 'browser';
+      break;
+    case Operator.RemoteComputer:
+      operator = await RemoteComputerOperator.create();
+      operatorType = 'computer';
+      break;
+    case Operator.RemoteBrowser:
+      operator = await createRemoteBrowserOperator();
+      operatorType = 'browser';
+      break;
+    default:
+      break;
+  }
+
+  let modelVersion = getModelVersion(settings.vlmProvider);
+  let modelConfig: UITarsModelConfig = {
+    baseURL: settings.vlmBaseUrl,
+    apiKey: settings.vlmApiKey,
+    model: settings.vlmModelName,
+    useResponsesApi: settings.useResponsesApi,
+  };
+  let modelAuthHdrs: Record<string, string> = {};
+
+  if (
+    settings.operator === Operator.RemoteComputer ||
+    settings.operator === Operator.RemoteBrowser
+  ) {
+    const useResponsesApi = await ProxyClient.getRemoteVLMResponseApiSupport();
+    modelConfig = {
+      baseURL: FREE_MODEL_BASE_URL,
+      apiKey: '',
+      model: '',
+      useResponsesApi,
+    };
+    modelAuthHdrs = await getAuthHeader();
+    modelVersion = await ProxyClient.getRemoteVLMProvider();
+  }
+
+  const systemPrompt = getSpByModelVersion(
+    modelVersion,
+    language,
+    operatorType,
+  );
+
   const guiAgent = new GUIAgent({
-    model: {
-      baseURL: settings.vlmBaseUrl,
-      apiKey: settings.vlmApiKey,
-      model: settings.vlmModelName,
-    },
-    systemPrompt: getSystemPrompt(language),
+    model: modelConfig,
+    systemPrompt: systemPrompt,
     logger,
     signal: abortController?.signal,
-    operator: new NutJSElectronOperator(),
+    operator: operator!,
     onData: handleData,
-    onError: ({ error }) => {
-      logger.error('[runAgent error]', settings, error);
+    onError: (params) => {
+      const { error } = params;
+      logger.error('[onGUIAgentError]', settings, error);
+      setState({
+        ...getState(),
+        status: StatusEnum.ERROR,
+        errorMsg: JSON.stringify({
+          status: error?.status,
+          message: error?.message,
+          stack: error?.stack,
+        }),
+      });
     },
     retry: {
       model: {
-        maxRetries: 3,
+        maxRetries: 5,
       },
       screenshot: {
         maxRetries: 5,
@@ -131,27 +225,32 @@ export const runAgent = async (
         maxRetries: 1,
       },
     },
+    maxLoopCount: settings.maxLoopCount,
+    loopIntervalInMs: settings.loopIntervalInMs,
+    uiTarsVersion: modelVersion,
   });
 
-  await hideWindowBlock(async () => {
-    await UTIOService.getInstance().sendInstruction(instructions);
+  GUIAgentManager.getInstance().setAgent(guiAgent);
+  UTIOService.getInstance().sendInstruction(instructions);
 
-    await guiAgent
-      .run(instructions)
-      .catch((e) => {
-        logger.error('[runAgentLoop error]', e);
-        setState({
-          ...getState(),
-          status: StatusEnum.ERROR,
-          errorMsg: e.message,
-        });
-      })
-      .finally(() => {
-        closeScreenMarker();
-        hidePauseButton();
-        hideScreenWaterFlow();
+  const { sessionHistoryMessages } = getState();
+
+  beforeAgentRun(settings.operator);
+
+  const startTime = Date.now();
+
+  await guiAgent
+    .run(instructions, sessionHistoryMessages, modelAuthHdrs)
+    .catch((e) => {
+      logger.error('[runAgentLoop error]', e);
+      setState({
+        ...getState(),
+        status: StatusEnum.ERROR,
+        errorMsg: e.message,
       });
-  }).catch((e) => {
-    logger.error('[runAgent error hideWindowBlock]', settings, e);
-  });
+    });
+
+  logger.info('[runAgent Totoal cost]: ', (Date.now() - startTime) / 1000, 's');
+
+  afterAgentRun(settings.operator);
 };

@@ -1,0 +1,11 @@
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691033,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"role":"assistant"},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691033,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"content":"{"},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691033,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"content":"\n  \"content\": \"I"},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691033,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"content":"'ll check the weather in Boston for you.\","},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691033,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"content":"\n  \"toolCall\": {"},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691033,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"content":"\n    \"name\": \"getWeather\","},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691034,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"content":"\n    \"args\": {\n      \"location\": \"Boston"},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691034,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{"content":"\"\n    }\n  }\n}"},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691034,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{},"index":0,"stop_reason":""}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691034,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{},"index":0,"finish_reason":"stop","stop_reason":"end_turn"}],"usage":{}}
+{"id":"20250623230351181CFE17F6D6AE345E5F","created":1750691034,"model":"aws_sdk_claude37_sonnet","choices":[{"delta":{},"index":0,"stop_reason":""}],"usage":{"completion_tokens":59,"prompt_tokens":403,"total_tokens":462}}
